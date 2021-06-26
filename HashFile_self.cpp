@@ -2,6 +2,7 @@
 #include<iostream>
 #include<fstream>
 using namespace std;
+#define BucketSize 13
 
 //结点结构体
 typedef struct Node{
@@ -11,16 +12,16 @@ typedef struct Node{
 }*List;
 
 //hash桶
-static List a[13];
+static List a[BucketSize];
 
 //hash函数
 int getHash(int key) {
-	return key % 13;
+	return key % BucketSize;
 }
 
 //初始化
 bool initList() {
-	for (int i = 0; i < 13; i++) {
+	for (int i = 0; i < BucketSize; i++) {
 		a[i] = new Node;
 		a[i]->next = NULL;
 	}
@@ -36,7 +37,7 @@ void addElem(List list, List n) {
 	p->next = n;
 }
 
-//输入一个元素
+//插入一个元素
 void InsertOne() {
 	cout << "key value" << endl;
 	List n = new Node;
@@ -45,12 +46,14 @@ void InsertOne() {
 	n->next = NULL;
 	int f = getHash(n->key);
 	addElem(a[f], n);
+	cout << "插入成功！" << endl;
 }
 
 //输出List
 void disList() {
 	//system("cls");
-	for (int i = 0; i < 13; i++) {
+	cout << "--------------------------------------------------" << endl;
+	for (int i = 0; i < BucketSize; i++) {
 		List q = a[i];
 		cout << i;
 		while (q->next != NULL)
@@ -60,6 +63,7 @@ void disList() {
 		}
 		cout << endl;
 	}
+	cout << "--------------------------------------------------" << endl;
 }
 
 //按Key查找
@@ -78,22 +82,76 @@ string SearchOfKey() {
 	return "不存在此元素";
 }
 
-void write() {
-	ofstream file("hash");
-	file << a;
+
+//按值查找
+void SearchOfValue() {
+	string value;
+	cout << "请输入要查找的值" << endl;
+	cin >> value;
+	bool b = false;
+	for (int i = 0; i < BucketSize; i++){
+		List p = a[i];
+		while (p->next!=NULL){
+			p = p->next;
+			if (!p->value.compare(value))
+			{
+				cout << "KEY = " << p->key << endl;
+				b = true;
+			}
+		}
+	}
+	if(!b)
+		cout << "未找到此元素" << endl;
+	return;
 }
-void read() {
-	ifstream file("hash");
-	//file >> a;
+
+void menu() {
+	system("cls");
+	cout << " 1.初始化数组"<<endl;
+	cout << " 2.插入数据"<<endl;
+	cout << " 3.查看所有数据" << endl;
+	cout << " 4.按关键字查找值" << endl;
+	cout << " 5.按值查找关键字" << endl;
+	cout << " 0.退出系统" << endl;
+	int choise;
+	cin >> choise;
+	switch (choise){
+		case 1: {
+			cout << ((initList()==true) ? "初始化成功！\n" : "初始化失败！\n");
+			break;
+		}
+		case 2: {
+			InsertOne();
+			break;
+		}
+		case 3: {
+			disList();
+			break;
+		}
+		case 4: {
+			cout<<SearchOfKey()<<endl;
+			break;
+		}
+		case 5: {
+			SearchOfValue();
+			break;
+		}
+		case 0: {
+			exit(0);
+		}
+		default:{
+			cout << "输入错误！请重新输入！" << endl;
+			break;
+		}
+	}
 }
 
 int main() {
-	if (!initList()) {
-		cout << "初始化失败！";
-		return -1;
-	};
-	InsertOne();
-	cout<<SearchOfKey()<<endl<<endl;
-	disList();
+	initList();
+	while (1)
+	{
+		menu();
+		system("pause");
+	}
 	return 0;
 }
