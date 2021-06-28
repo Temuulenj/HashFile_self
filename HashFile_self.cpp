@@ -1,157 +1,241 @@
-﻿#pragma warning(disable: 4996)
+﻿#pragma warning(disable:4996);
 #include<iostream>
-#include<fstream>
 using namespace std;
-#define BucketSize 13
+const int N = 13;
+typedef int keyType;
+struct elemType {
+	keyType key;
+	char value[20];
+};
+struct Node {
+	struct elemType data;
+	int next;
+};
+const char Hash[] = "Hash";
+const char Index[] = "HashIndex";
+const int keySize = sizeof(keyType);
+const int elemSize = sizeof(Node);
+int haveData(int);
+/*
+if (mod == 1) {
+	初始化
+}
+else {
+	新建文件
+}
+*/
 
-//结点结构体
-typedef struct Node{
-	string value="";
-	int key=0;
-	struct Node* next=NULL;
-}*List;
-
-//hash桶
-static List a[BucketSize];
-
-//hash函数
 int getHash(int key) {
-	return key % BucketSize;
+	return key % N;
 }
 
-//初始化
-bool initList() {
-	for (int i = 0; i < BucketSize; i++) {
-		a[i] = new Node;
-		a[i]->next = NULL;
+bool reWrite(int mod) {//初始化散列文件
+	if (mod == 1) {
+		cout << "--- 确定要初始化散列文件(y/n)? ---\n";
+		char a;
+		cin >> a;
+		if (a != 'y' && a != 'Y') {
+			cout << "--- 未执行初始化操作！ ---\n";
+			return false;
+		}
+	}
+	FILE* fp, * fp2;
+	fp = fopen(Hash, "wb+");
+	fp2 = fopen(Index, "wb+");
+	if (fp == NULL || fp2 == NULL) {
+		cout << "--- 文件打开失败！---\n";
+		return false;
+	}
+	int* arr = (int*)calloc(N, keySize);
+	//初始化链表，-1代表空
+	for (int i = 0; i < N; i++) {
+		arr[i] = -1;
+	}
+	fwrite((char*)arr, N * keySize, 1, fp2);
+	fclose(fp);
+	fclose(fp2);
+	cout << "--- 执行成功！ ---\n";
+	return true;
+}
+
+//检测是否有散列文件
+bool create() {
+	FILE* fp, * fp2;
+	fp = fopen(Hash, "rb");
+	fp2 = fopen(Index, "rb");
+	//文件未打开
+	if (fp == NULL || fp2 == NULL) {
+		cout << "--- 文件不存在，是否要新建Hash文件(y/n)? ---\n";
+		char a;
+		cin >> a;
+		if (a == 'y' || a == 'Y') {
+			cout << "--- 正在新建Hash文件！ ---\n";
+		}
+		else {
+			cout << "--- 未执行新建操作! ---\n";
+			return false;
+		}
+		reWrite(0);
 	}
 	return true;
 }
 
-//尾插法
-void addElem(List list, List n) {
-	List p = list;
-	while (p->next != NULL) {
-		p = p->next;
+bool insertOne() {
+	FILE* fp, * fp2;
+	fp = fopen(Hash, "rb+");
+	fp2 = fopen(Index, "rb+");
+	if (fp == NULL || fp2 == NULL) {
+		cout << "--- 文件打开失败！ ---\n";
+		return false;
 	}
-	p->next = n;
+	cout << "请输入待插入元素x的值(一个整数(关键字)和一个字符串(附加信息，长度小于20)):\n";
+	struct Node x;
+	int* arr = (int*)calloc(N, keySize);
+	cin >> x.data.key;
+	cin >> x.data.value;
+	if (haveData(x.data.key)) {
+		cout << "--- 该关键值已存在，不能重复录入! ---\n";
+		return false;
+	}
+	//获取链表头
+	fread((char*)arr, (N)*keySize, 1, fp2);
+	int hash = getHash(x.data.key);
+	x.next = arr[hash];
+	//文件内指针移至文件尾
+	fseek(fp, 0L, SEEK_END);
+	//计算出结点位置序号
+	int len = ftell(fp) / elemSize;
+	fwrite((char*)&x, elemSize, 1, fp);
+	arr[hash] = len;
+	//指针移到文件头
+	fseek(fp2, 0L, SEEK_SET);
+	fwrite((char*)arr, N * keySize, 1, fp2);
+	fclose(fp);
+	fclose(fp2);
+	return true;
 }
 
-//插入一个元素
-void InsertOne() {
-	cout << "key value" << endl;
-	List n = new Node;
-	cin >> n->key;
-	cin >> n->value;
-	n->next = NULL;
-	int f = getHash(n->key);
-	addElem(a[f], n);
-	cout << "插入成功！" << endl;
+//b==true 手动输入关键字
+//b=false 不需要输入关键字
+void searchOne() {
+	int key;
+	cout << "请输入关键值\n";
+	cin >> key;
+	int hash = getHash(key);
+	FILE* fp, * fp2;
+	fp = fopen(Hash, "rb+");
+	fp2 = fopen(Index, "rb+");
+	int* arr = (int*)calloc(N, keySize);
+	fread((char*)arr, N * keySize, 1, fp2);
+	int p = arr[hash];
+	if (p == -1) {
+		cout << "不存在此元素！\n";
+		return;
+	}
+	while (p != -1) {
+		Node x;
+		fseek(fp, p * elemSize, SEEK_SET);
+		fread((char*)&x, elemSize, 1, fp);
+		if (x.data.key == key) {
+			cout << "value= " << x.data.value << endl;
+		}
+		p = x.next;
+	}
 }
 
-//输出List
-void disList() {
-	//system("cls");
-	cout << "--------------------------------------------------" << endl;
-	for (int i = 0; i < BucketSize; i++) {
-		List q = a[i];
+int haveData(int key) {
+	int hash = getHash(key);
+	FILE* fp, * fp2;
+	fp = fopen(Hash, "rb+");
+	fp2 = fopen(Index, "rb+");
+	int* arr = (int*)calloc(N, keySize);
+	fread((char*)arr, N * keySize, 1, fp2);
+	int p = arr[hash];
+	if (p == -1) {
+		return false;
+	}
+	while (p != -1) {
+		Node x;
+		fseek(fp, p * elemSize, SEEK_SET);
+		fread((char*)&x, elemSize, 1, fp);
+		if (x.data.key == key) {
+			return true;
+		}
+		p = x.next;
+	}
+	return false;
+}
+
+void display() {
+	FILE* fp, * fp2;
+	fp = fopen(Hash, "rb+");
+	fp2 = fopen(Index, "rb+");
+	if (fp == NULL || fp2 == NULL) {
+		cout << "文件打开失败！\n";
+		return;
+	}
+	int* arr = (int*)calloc(N, keySize);
+	if (arr == NULL) {
+		cout << "数组空间申请失败！\n";
+		return;
+	}
+	fread((char*)arr, keySize, N, fp2);
+
+	for (int i = 0; i < N; i++) {
+		int p = arr[i];
 		cout << i;
-		while (q->next != NULL)
-		{
-			q = q->next;
-			cout << " -> " << q->key << "(" << q->value << ")";
+		while (p != -1) {
+			Node x;
+			fseek(fp, p * elemSize, SEEK_SET);
+			fread((char*)&x, elemSize, 1, fp);
+			cout << " ->" << x.data.key << "(" << x.data.value << ") ";
+			p = x.next;
 		}
 		cout << endl;
 	}
-	cout << "--------------------------------------------------" << endl;
+	fclose(fp);
+	fclose(fp2);
 }
 
-//按Key查找
-string SearchOfKey() {
-	int key;
-	cout << "请输入要查找的Key"<<endl;
-	cin >> key;
-	int hashKey = getHash(key);
-	List p = a[hashKey];
-	while (p->next!=NULL){
-		p = p->next;
-		if (p->key == key) {
-			return p->value;
-		}
+void start() {
+	cout << "--- 1.初始化散列文件 ---\n";
+	cout << "--- 2.插入新值 ---\n";
+	cout << "--- 3.输出全部数据 ---\n";
+	cout << "--- 4.查找元素 ---\n";
+	cout << "--- 0.退出程序 ---\n";
+	int a;
+	cin >> a;
+	switch (a)
+	{
+	case 1: {
+		reWrite(1);
+		break;
 	}
-	return "不存在此元素";
-}
-
-
-//按值查找
-void SearchOfValue() {
-	string value;
-	cout << "请输入要查找的值" << endl;
-	cin >> value;
-	bool b = false;
-	for (int i = 0; i < BucketSize; i++){
-		List p = a[i];
-		while (p->next!=NULL){
-			p = p->next;
-			if (!p->value.compare(value))
-			{
-				cout << "KEY = " << p->key << endl;
-				b = true;
-			}
-		}
+	case 2: {
+		insertOne();
+		break;
 	}
-	if(!b)
-		cout << "未找到此元素" << endl;
-	return;
-}
-
-void menu() {
-	system("cls");
-	cout << " 1.初始化数组"<<endl;
-	cout << " 2.插入数据"<<endl;
-	cout << " 3.查看所有数据" << endl;
-	cout << " 4.按关键字查找值" << endl;
-	cout << " 5.按值查找关键字" << endl;
-	cout << " 0.退出系统" << endl;
-	int choise;
-	cin >> choise;
-	switch (choise){
-		case 1: {
-			cout << ((initList()==true) ? "初始化成功！\n" : "初始化失败！\n");
-			break;
-		}
-		case 2: {
-			InsertOne();
-			break;
-		}
-		case 3: {
-			disList();
-			break;
-		}
-		case 4: {
-			cout<<SearchOfKey()<<endl;
-			break;
-		}
-		case 5: {
-			SearchOfValue();
-			break;
-		}
-		case 0: {
-			exit(0);
-		}
-		default:{
-			cout << "输入错误！请重新输入！" << endl;
-			break;
-		}
+	case 3: {
+		display();
+		break;
+	}
+	case 4: {
+		searchOne();
+		break;
+	}
+	case 0: {
+		exit(0);
+	}
+	default:
+		cout << "输入错误！请重新输入！\n";
+		return;
 	}
 }
 
 int main() {
-	initList();
-	while (1)
-	{
-		menu();
-		system("pause");
+	create();
+	while (1) {
+		start();
 	}
 	return 0;
 }
